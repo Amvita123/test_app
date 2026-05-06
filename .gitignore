@@ -1,0 +1,10 @@
+# Virtual environment files
+venv/
+env/
+*.env
+/venv
+venv
+
+
+.env
+/.env
