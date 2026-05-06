@@ -1,5 +1,5 @@
 # Virtual environment files
-venv/
+venv/1
 env/
 *.env
 /venv
