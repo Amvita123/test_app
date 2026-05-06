@@ -8,3 +8,5 @@ venv
 
 .env
 /.env
+
+firebase_config.json
