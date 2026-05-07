@@ -1,0 +1,16 @@
+# Python files
+*.pyc
+*.pyo
+*.pyd
+
+# IDE files
+.vscode/
+.pycharm/
+.idea/
+
+
+# Virtual environment files
+venv/
+env/
+/venv
+venv
