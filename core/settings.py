@@ -29,14 +29,14 @@ THIRD_PARTY_PACKAGES = [
     "rest_framework_simplejwt",
     "django_filters",
     "django_celery_beat",
+    "drf_yasg",
 ]
 
 CUSTOM_APPS = [
-    'common',
     'users',
     "notification",
     "dashboard",
-
+    "common",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_PACKAGES + CUSTOM_APPS
@@ -119,7 +119,7 @@ MEDIA_URL = '/media/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# AUTH_USER_MODEL = 'users.User'
+AUTH_USER_MODEL = 'users.User'
 
 # SMTP
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -154,8 +154,8 @@ SIMPLE_JWT = {
 CELERY_TIMEZONE = 'UTC'
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60
-CELERY_BROKER_URL = 'redis://redis:6379/0'
-CELERY_RESULT_BACKEND = 'redis://redis:6379/0'
+CELERY_BROKER_URL = "redis://127.0.0.1:6379/0"
+CELERY_RESULT_BACKEND = "redis://127.0.0.1:6379/0"
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_RESULT_SERIALIZER = 'json'

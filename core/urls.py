@@ -2,9 +2,11 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf.urls.static import static
 from core import settings
+from .api_urls import urlpatterns as api_urls
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/', include(api_urls)),
     path("", include("dashboard.core.urls")),
 ]
 
