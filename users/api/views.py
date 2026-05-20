@@ -1,12 +1,14 @@
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
-from users.serializers.user_signup import UserSignUpSerializer, OtpVerificationSerializer
+from users.serializers.user_signup import UserSignUpSerializer, OtpVerificationSerializer, SMSOTPVerificationSerializer
 from rest_framework import status
 from users.serializers.users import UserSerializer
 from users.helper.response import success_response, error_response, response_not_found, create_unique_username
-from users.services.send_otp_verification import send_otp_to_mail
+from users.services.send_otp_verification import send_otp_to_mail, send_otp_to_phone
 from users.models import User
 from django.core.cache import cache
+from users.serializers.auth import UserSignInSerializer
 
 class SignUpAPIView(APIView):
     permission_classes = [AllowAny]
@@ -17,8 +19,7 @@ class SignUpAPIView(APIView):
             email = email.lower()
         user_exists = User.objects.filter(email=email).first()
         if user_exists and not user_exists.email_verified:
-            send_otp_to_mail(username=f'{user_exists.first_name} {user_exists.last_name}', user_email=user_exists.email.lower(),
-                             phone_number=user_exists.phone_number)
+            send_otp_to_mail(username=f'{user_exists.first_name} {user_exists.last_name}', user_email=user_exists.email.lower())
             return success_response(
                 message="OTP sent to your email. Please verify your account.",
                 status_code=status.HTTP_200_OK
@@ -37,8 +38,7 @@ class SignUpAPIView(APIView):
             user.is_active = True
             user.save()
 
-            send_otp_to_mail(username=f'{user.first_name} {user.last_name}', user_email=user.email.lower(),
-                             phone_number=user.phone_number)
+            send_otp_to_mail(username=f'{user.first_name} {user.last_name}', user_email=user.email.lower())
 
             serialize = UserSerializer(user)
             return success_response(message="User Registered Successfully", data=serialize.data, status_code=status.HTTP_201_CREATED)
@@ -61,8 +61,7 @@ class VerifyEmailOtpAPIView(APIView):
             cache_otp = cache.get(f"otp_{user.email}")
 
             if cache_otp is None:
-                send_otp_to_mail(username=f'{user.first_name} {user.last_name}', user_email=user.email.lower(),
-                                 phone_number=user.phone_number
+                send_otp_to_mail(username=f'{user.first_name} {user.last_name}', user_email=user.email.lower()
                                  )
                 return response_not_found(
                     message="your previous opt was expired. we have resend otp please check your mail.",
@@ -72,9 +71,70 @@ class VerifyEmailOtpAPIView(APIView):
             if str(cache_otp) == str(serializer.validated_data['otp']):
                 user.email_verified = True
                 user.save()
+                send_otp_to_phone(
+                    username=f'{user.first_name} {user.last_name}',
+                    phone_number=user.phone_number
+                )
                 return success_response(message="email verified & SMS otp sent successfully", status_code=status.HTTP_200_OK
                                         )
             else:
                 return error_response(
                     message="Invalid otp code",
                     status_code=status.HTTP_400_BAD_REQUEST)
+
+class VerifySMSOtpAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        serializer = SMSOTPVerificationSerializer(data=request.data)
+
+        if serializer.is_valid(raise_exception=True):
+            user = serializer.validated_data['user']
+
+            if user.sms_verified is True:
+                return error_response(
+                    message="your sms otp is already verified. please login.",
+                    status_code=status.HTTP_400_BAD_REQUEST
+                )
+
+            cache_otp = cache.get(f"sms_otp_{user.phone_number}")
+
+            if cache_otp is None:
+                send_otp_to_phone(
+                    username=f'{user.first_name} {user.last_name}',
+                    phone_number=user.phone_number
+                )
+                return error_response(
+                    message="your previous otp was expired. we have resend otp please check your phone.",
+                    status_code=status.HTTP_400_BAD_REQUEST)
+
+            if str(cache_otp) == str(serializer.validated_data['otp']):
+                user.sms_verified = True
+                user.save()
+
+                return success_response(
+                    message="sms otp verified successfully please login.",
+                    status_code=status.HTTP_200_OK
+                )
+
+            return error_response(
+                message="Invalid otp code",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+
+class SignInAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        serializer = UserSignInSerializer(data=request.data)
+
+        if serializer.is_valid(raise_exception=True):
+            user = serializer.validated_data['user']
+
+            refresh = RefreshToken.for_user(user)
+
+            return success_response(message="login successful", data={
+                                        "refresh": str(refresh),
+                                        "access": str(refresh.access_token),
+                                        "user": UserSerializer(user).data
+            },status_code=status.HTTP_200_OK)
