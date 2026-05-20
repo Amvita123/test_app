@@ -1,5 +1,5 @@
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from users.serializers.user_signup import UserSignUpSerializer, OtpVerificationSerializer, SMSOTPVerificationSerializer
 from rest_framework import status
@@ -9,6 +9,7 @@ from users.services.send_otp_verification import send_otp_to_mail, send_otp_to_p
 from users.models import User
 from django.core.cache import cache
 from users.serializers.auth import UserSignInSerializer
+
 
 class SignUpAPIView(APIView):
     permission_classes = [AllowAny]
@@ -41,7 +42,7 @@ class SignUpAPIView(APIView):
             send_otp_to_mail(username=f'{user.first_name} {user.last_name}', user_email=user.email.lower())
 
             serialize = UserSerializer(user)
-            return success_response(message="User Registered Successfully", data=serialize.data, status_code=status.HTTP_201_CREATED)
+            return success_response(message="User registered successfully please verify your account", data=serialize.data, status_code=status.HTTP_201_CREATED)
 
 
 class VerifyEmailOtpAPIView(APIView):
@@ -81,6 +82,7 @@ class VerifyEmailOtpAPIView(APIView):
                 return error_response(
                     message="Invalid otp code",
                     status_code=status.HTTP_400_BAD_REQUEST)
+
 
 class VerifySMSOtpAPIView(APIView):
     permission_classes = [AllowAny]
@@ -122,6 +124,7 @@ class VerifySMSOtpAPIView(APIView):
                 status_code=status.HTTP_400_BAD_REQUEST
             )
 
+
 class SignInAPIView(APIView):
     permission_classes = [AllowAny]
 
@@ -138,3 +141,22 @@ class SignInAPIView(APIView):
                                         "access": str(refresh.access_token),
                                         "user": UserSerializer(user).data
             },status_code=status.HTTP_200_OK)
+
+
+class UserProfileAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        serialize = UserSerializer(request.user)
+        return success_response(message="User profile get successfully", data=serialize.data, status_code=status.HTTP_200_OK)
+
+    def patch(self, request, *args, **kwargs):
+        serialize = UserSerializer(request.user, data=request.data, partial=True)
+        if serialize.is_valid(raise_exception=True):
+            serialize.save()
+            return success_response(message="User profile update successfully", status_code=status.HTTP_200_OK)
+
+    def delete(self, request, *args, **kwargs):
+        user = request.user
+        user.delete()
+        return success_response(message="User account delete successfully", status_code=status.HTTP_200_OK)
