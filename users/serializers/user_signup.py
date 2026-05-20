@@ -44,3 +44,19 @@ class OtpVerificationSerializer(CustomSerializer):
         else:
             raise serializers.ValidationError("email does not exists in database")
         return attrs
+
+class SMSOTPVerificationSerializer(CustomSerializer):
+    phone_number = serializers.CharField(max_length=15)
+    otp = serializers.IntegerField(min_value=100000, max_value=999999,
+                                   error_messages={'min_value': 'OTP code must be 6 digits, number',
+                                                   'max_value': 'OTP code must be 6 digits number',
+                                                   'invalid': 'Invalid OTP. Please enter a valid 6-digit number.'
+                                                   })
+    def validate(self, attrs):
+        phone_number = attrs.get("phone_number", "")
+        user = User.objects.filter(phone_number=phone_number)
+        if user.exists() is True:
+            attrs['user'] = user.first()
+        else:
+            raise serializers.ValidationError("phone_number does not exists in database")
+        return attrs
